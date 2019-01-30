@@ -2,12 +2,14 @@
 
 from PyQt4 import QtGui, QtCore
 from UiPy_MainWindow import Ui_MainWindow
+from UiPy_Dialog_paramconfig import Ui_Dialog_paramconfig
 import numpy as np
 import struct
 import os
 from scipy import signal
 import pyqtgraph as pg
 import time
+import sys
 
 
 try:
@@ -16,19 +18,101 @@ except AttributeError:
     def _fromUtf8(s):
         return s
 
+class Code_Dialog_paramconfig(Ui_Dialog_paramconfig):
+    signal_getparamconfig = QtCore.pyqtSignal(dict)
+
+    def __init__(self, parent=None):
+        super(Code_Dialog_paramconfig, self).__init__()
+        self.setupUi(self)
+        self.buttonBox.accepted.connect(self.signal_emitter)
+
+    def signal_emitter(self):
+        dict_paramconfig = {}
+        dict_paramconfig['cable_length'] = float(self.lineEdit_cablelength.text())
+        dict_paramconfig['sensor1_loc'] = float(self.lineEdit_sensor1loc.text())
+        dict_paramconfig['sensor2_loc'] = float(self.lineEdit_sensor2loc.text())
+        dict_paramconfig['speed_compensate'] = float(self.lineEdit_speedcompensate.text())
+        self.signal_getparamconfig.emit(dict_paramconfig)
 
 class Code_MainWindow(Ui_MainWindow):
 
     def __init__(self, parent=None):
+        self.cable_length = 200
+        self.sensor1_loc = 0
+        self.sensor2_loc = 200
+        self.speed_compensate = 1
+
         super(Code_MainWindow, self).__init__()
         self.setupUi(self)
         self.showMaximized();
         self.centralwidget.setLayout(self.gridLayout_figure)
-       
-        path = os.getcwd() + "//" + "input_data" +"//" + "6" + "//" + "100" + "//" + '0'
 
+        self.GLW_waveform.addLegend(offset=(-10,-70))
+        self.GLW_waveform.setLabel('left', "voltage/V")
+        self.GLW_waveform.setLabel('bottom', "time/t")
+        self.GLW_waveform.setTitle('waveform')
+        self.GLW_waveform.setDownsampling(ds=256,auto=False, mode='subsample')
+        self.curve_waveform1=pg.PlotDataItem(pen='g',name = 'ch1')
+        self.curve_waveform2=pg.PlotDataItem(pen='b',name = 'ch2')
+        self.GLW_waveform.addItem(self.curve_waveform1)
+        self.GLW_waveform.addItem(self.curve_waveform2)
+
+        self.GLW_spectrum.addLegend(offset=(-10,-70))
+        self.GLW_spectrum.setLabel('left', "amplitude/V")
+        self.GLW_spectrum.setLabel('bottom', "frequency/khz")
+        self.GLW_spectrum.setTitle('spectrum')
+        self.curve_spectrum1=pg.PlotDataItem(pen='g',name = 'ch1')
+        self.curve_spectrum2=pg.PlotDataItem(pen='b',name = 'ch2')
+        self.GLW_spectrum.addItem(self.curve_spectrum1)
+        self.GLW_spectrum.addItem(self.curve_spectrum2)
+
+        self.GLW_localization.hideAxis('left')
+        self.GLW_localization.hideAxis('bottom')
+        self.marker_source=pg.PlotDataItem([self.sensor1_loc],[0],symbolBrush='r')
+        self.marker_sensor1=pg.PlotDataItem([self.sensor1_loc],[0],symbolBrush='g')
+        self.marker_sensor2=pg.PlotDataItem([self.sensor2_loc],[0],symbolBrush='g')
+        self.line_cable=pg.PlotDataItem([0,self.cable_length],[0,0],pen='b')
+        self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
+        self.GLW_localization.addItem(self.line_cable)
+        self.GLW_localization.addItem(self.marker_source)
+        self.GLW_localization.addItem(self.marker_sensor1)
+        self.GLW_localization.addItem(self.marker_sensor2)
+        self.text_source = pg.TextItem(anchor=(0.5,0))
+        self.text_sensor1 = pg.TextItem(text="sensor1",anchor=(0.5,0))
+        self.text_sensor2 = pg.TextItem(text="sensor2",anchor=(0.5,0))
+        self.text_sensor1.setPos(self.sensor1_loc,0)
+        self.text_sensor2.setPos(self.sensor2_loc,0)
+        self.GLW_localization.addItem(self.text_source)
+        self.GLW_localization.addItem(self.text_sensor1)
+        self.GLW_localization.addItem(self.text_sensor2)
+        self.GLW_localization.setMouseEnabled(x=False, y=False)
+
+        self.action_paramconfig.triggered.connect(self.open_paramconfig_dlg)
+
+        path = os.getcwd() + "//" + "input_data" +"//" + "6" + "//" + "100" + "//" + '0'
         self.draw_waveform_spectrum(path)
 
+    def open_paramconfig_dlg(self):
+        self.ui_paramconfig = Code_Dialog_paramconfig()
+        self.ui_paramconfig.lineEdit_cablelength.setText(str(self.cable_length))
+        self.ui_paramconfig.lineEdit_sensor1loc.setText(str(self.sensor1_loc))
+        self.ui_paramconfig.lineEdit_sensor2loc.setText(str(self.sensor2_loc))
+        self.ui_paramconfig.lineEdit_speedcompensate.setText(str(self.speed_compensate))
+        self.ui_paramconfig.show()
+        self.ui_paramconfig.signal_getparamconfig.connect(self.get_paramconfig_dict)
+
+    @QtCore.pyqtSlot(dict)
+    def get_paramconfig_dict(self,dict_paramconfig):
+        self.cable_length = dict_paramconfig['cable_length']
+        self.sensor1_loc = dict_paramconfig['sensor1_loc']
+        self.sensor2_loc = dict_paramconfig['sensor2_loc']
+        self.text_sensor1.setPos(self.sensor1_loc,0)
+        self.text_sensor2.setPos(self.sensor2_loc,0)
+        self.line_cable.setData([0,self.cable_length],[0,0])
+        self.marker_source.setData([self.sensor1_loc],[0])
+        self.marker_sensor1.setData([self.sensor1_loc],[0])
+        self.marker_sensor2.setData([self.sensor2_loc],[0])
+        self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
     
     def draw_waveform_spectrum(self,path):
         pwd = os.getcwd()
@@ -37,7 +121,6 @@ class Code_MainWindow(Ui_MainWindow):
         datax = []
         datay1 = []
         datay2 = []
-        interval = 500
         while True:
             data = fb.read(4)
             if not data:
@@ -52,30 +135,8 @@ class Code_MainWindow(Ui_MainWindow):
 
         fb.close()
 
-        self.GLW_localization.hideAxis('left')
-        self.GLW_localization.hideAxis('bottom')
-        cable=pg.PlotDataItem([0,100],[0,0],pen='b')
-        source=pg.PlotDataItem([40],[0],pen='r',symbolBrush=(255,0,0), symbolPen='w')
-        sensor1=pg.PlotDataItem([0],[0],pen='r',symbolBrush=(0,255,0), symbolPen='w')
-        sensor2=pg.PlotDataItem([100],[0],pen='r',symbolBrush=(0,255,0), symbolPen='w')
-        self.GLW_localization.setRange(QtCore.QRectF(0,0,100,0))
-
-        self.GLW_localization.addItem(cable)
-        self.GLW_localization.addItem(source)
-        self.GLW_localization.addItem(sensor1)
-        self.GLW_localization.addItem(sensor2)
-
-        self.GLW_waveform.addLegend(offset=(-10,-70))
-        #datax = datax[1:count:interval]
-        #self.GLW_waveform.plot(datax,datay1[1:count:interval],pen='g',name = 'ch1')
-        #self.GLW_waveform.plot(datax,datay2[1:count:interval],pen='b',name = 'ch2')
-        self.GLW_waveform.plot(datax,datay1,pen='g',name = 'ch1')
-        self.GLW_waveform.plot(datax,datay2,pen='b',name = 'ch2')
-        self.GLW_waveform.setDownsampling(ds=512,auto=False, mode='subsample')
-
-        self.GLW_waveform.setLabel('left', "voltage/V")
-        self.GLW_waveform.setLabel('bottom', "time/t")
-        self.GLW_waveform.setTitle('waveform')
+        self.curve_waveform1.setData(datax,datay1)
+        self.curve_waveform2.setData(datax,datay2)
 
         datay1 = datay1[200000:700000]
         datay1 = datay2[200000:700000]
@@ -118,13 +179,8 @@ class Code_MainWindow(Ui_MainWindow):
         freq = np.array(freq[start:end])
         freq = freq/1000
 
-        self.GLW_spectrum.addLegend(offset=(-10,-70))
-        self.GLW_spectrum.plot(freq,magnitude1,pen='g',name = 'ch1')
-        self.GLW_spectrum.plot(freq,magnitude2,pen='b',name = 'ch2')
-
-        self.GLW_spectrum.setLabel('left', "amplitude/V")
-        self.GLW_spectrum.setLabel('bottom', "frequency/khz")
-        self.GLW_spectrum.setTitle('spectrum')
+        self.curve_spectrum1.setData(freq,magnitude1)
+        self.curve_spectrum2.setData(freq,magnitude2)
 
         ct = time.time()
         local_time = time.localtime(ct)
@@ -133,15 +189,15 @@ class Code_MainWindow(Ui_MainWindow):
         time_stamp = "%s.%03d" % (data_head, data_secs) + "  位置90cm处  " + "断丝概率60%"
         self.textEdit_record.setText(time_stamp)
 
-        text_source = pg.TextItem(text="(40,0)",anchor=(0.5,1))
-        self.GLW_localization.addItem(text_source)
-        text_source.setPos(40,0)
+        self.marker_source.setData([40],[0])
+        self.text_source.setPos(40,0)
+        self.text_source.setText(str(40)+"cm")
 
-
-
-if __name__ == "__main__":
-    import sys
+def main():
     app = QtGui.QApplication(sys.argv)
     ui_main = Code_MainWindow()
     ui_main.show()
-sys.exit(app.exec_())
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

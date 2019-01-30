@@ -99,14 +99,13 @@
     </property>
     <addaction name="separator"/>
     <addaction name="action_startcapture"/>
-    <addaction name="action_channelconfig"/>
+    <addaction name="action_paramconfig"/>
    </widget>
    <widget class="QMenu" name="menu_analysis">
     <property name="title">
      <string>分析设置</string>
     </property>
     <addaction name="action_showhis"/>
-    <addaction name="action_cableparam"/>
    </widget>
    <addaction name="menu_capture"/>
    <addaction name="menu_analysis"/>
@@ -117,9 +116,9 @@
     <string>开始采集</string>
    </property>
   </action>
-  <action name="action_channelconfig">
+  <action name="action_paramconfig">
    <property name="text">
-    <string>通道配置</string>
+    <string>参数配置</string>
    </property>
   </action>
   <action name="action_showhis">
