@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>221</height>
+    <height>281</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>170</y>
+     <y>240</y>
      <width>341</width>
      <height>32</height>
     </rect>
@@ -34,8 +34,8 @@
     <rect>
      <x>30</x>
      <y>20</y>
-     <width>269</width>
-     <height>128</height>
+     <width>287</width>
+     <height>198</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
@@ -43,23 +43,6 @@
      <widget class="QLabel" name="label">
       <property name="text">
        <string>缆索总长</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QLineEdit" name="lineEdit_cablelength"/>
-    </item>
-    <item row="0" column="2">
-     <widget class="QLabel" name="label_4">
-      <property name="text">
-       <string>cm</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="label_2">
-      <property name="text">
-       <string>传感器1位置</string>
       </property>
      </widget>
     </item>
@@ -80,6 +63,16 @@
       </property>
      </widget>
     </item>
+    <item row="0" column="1">
+     <widget class="QLineEdit" name="lineEdit_cablelength"/>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>传感器1位置</string>
+      </property>
+     </widget>
+    </item>
     <item row="2" column="1">
      <widget class="QLineEdit" name="lineEdit_sensor2loc"/>
     </item>
@@ -90,15 +83,84 @@
       </property>
      </widget>
     </item>
-    <item row="3" column="0">
+    <item row="0" column="2">
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>cm</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="0">
      <widget class="QLabel" name="label_7">
       <property name="text">
        <string>声速补偿系数</string>
       </property>
      </widget>
     </item>
-    <item row="3" column="1">
+    <item row="5" column="1">
      <widget class="QLineEdit" name="lineEdit_speedcompensate"/>
+    </item>
+    <item row="2" column="3">
+     <widget class="QCheckBox" name="checkBox_sensor2enabled">
+      <property name="text">
+       <string>使能</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="3">
+     <widget class="QCheckBox" name="checkBox_sensor1enabled">
+      <property name="text">
+       <string>使能</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="QLineEdit" name="lineEdit_sensor3loc"/>
+    </item>
+    <item row="4" column="1">
+     <widget class="QLineEdit" name="lineEdit_sensor4loc"/>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_8">
+      <property name="text">
+       <string>传感器3位置</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="label_9">
+      <property name="text">
+       <string>传感器4位置</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="2">
+     <widget class="QLabel" name="label_10">
+      <property name="text">
+       <string>cm</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="2">
+     <widget class="QLabel" name="label_11">
+      <property name="text">
+       <string>cm</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="3">
+     <widget class="QCheckBox" name="checkBox_sensor3enabled">
+      <property name="text">
+       <string>使能</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="3">
+     <widget class="QCheckBox" name="checkBox_sensor4enabled">
+      <property name="text">
+       <string>使能</string>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>

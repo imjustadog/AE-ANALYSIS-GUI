@@ -10,7 +10,7 @@ from scipy import signal
 import pyqtgraph as pg
 import time
 import sys
-
+import posix_ipc as posix
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -97,6 +97,8 @@ class Code_MainWindow(Ui_MainWindow):
         self.ui_paramconfig.lineEdit_cablelength.setText(str(self.cable_length))
         self.ui_paramconfig.lineEdit_sensor1loc.setText(str(self.sensor1_loc))
         self.ui_paramconfig.lineEdit_sensor2loc.setText(str(self.sensor2_loc))
+        self.ui_paramconfig.lineEdit_sensor3loc.setText("0")
+        self.ui_paramconfig.lineEdit_sensor4loc.setText("0")
         self.ui_paramconfig.lineEdit_speedcompensate.setText(str(self.speed_compensate))
         self.ui_paramconfig.show()
         self.ui_paramconfig.signal_getparamconfig.connect(self.get_paramconfig_dict)
@@ -194,10 +196,18 @@ class Code_MainWindow(Ui_MainWindow):
         self.text_source.setText(str(40)+"cm")
 
 def main():
+    os.system("./out1 &")
     app = QtGui.QApplication(sys.argv)
     ui_main = Code_MainWindow()
     ui_main.show()
-    sys.exit(app.exec_())
+    ret=app.exec_()
+    mq=posix.MessageQueue("/mq1")
+    mesg,_=mq.receive()
+    print(mesg.decode())
+    os.system("pkill out1")
+    mq.close()
+    posix.unlink_message_queue("/mq1")
+    sys.exit(ret)
 
 if __name__ == "__main__":
     main()
