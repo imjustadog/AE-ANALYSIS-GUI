@@ -1,7 +1,7 @@
-PROGS = out1
-CXX = g++
+PROGS = streamread out1
+CXX = gcc
 CFLAGS += -Wall
-LDLIBS += -lrt -pthread
+LDLIBS += -lrt -pthread -lm
 OBJS = $(PROGS).o
 
 all: $(PROGS)
@@ -10,7 +10,7 @@ all: $(PROGS)
 	$(CXX) $(LDLIBS) $(CFLAGS) $^ -o $@
 
 
-%.o: %.cpp
+%.o: %.c
 	$(CXX) -c $(LDLIBS) $(CFLAGS) $^ -o $@
 
 clean:
