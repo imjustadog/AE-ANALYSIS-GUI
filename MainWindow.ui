@@ -99,6 +99,7 @@
     </property>
     <addaction name="separator"/>
     <addaction name="action_startcapture"/>
+    <addaction name="action_stopcapture"/>
     <addaction name="action_paramconfig"/>
    </widget>
    <widget class="QMenu" name="menu_analysis">
@@ -134,6 +135,11 @@
   <action name="action_cableparam">
    <property name="text">
     <string>缆索参数</string>
+   </property>
+  </action>
+  <action name="action_stopcapture">
+   <property name="text">
+    <string>停止采集</string>
    </property>
   </action>
  </widget>

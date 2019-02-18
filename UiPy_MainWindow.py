@@ -90,8 +90,11 @@ class Ui_MainWindow(QtGui.QMainWindow):
         self.action_5.setObjectName(_fromUtf8("action_5"))
         self.action_cableparam = QtGui.QAction(MainWindow)
         self.action_cableparam.setObjectName(_fromUtf8("action_cableparam"))
+        self.action_stopcapture = QtGui.QAction(MainWindow)
+        self.action_stopcapture.setObjectName(_fromUtf8("action_stopcapture"))
         self.menu_capture.addSeparator()
         self.menu_capture.addAction(self.action_startcapture)
+        self.menu_capture.addAction(self.action_stopcapture)
         self.menu_capture.addAction(self.action_paramconfig)
         self.menu_analysis.addAction(self.action_showhis)
         self.menubar.addAction(self.menu_capture.menuAction())
@@ -111,5 +114,6 @@ class Ui_MainWindow(QtGui.QMainWindow):
         self.action_showhis.setText(_translate("MainWindow", "查看历史", None))
         self.action_5.setText(_translate("MainWindow", "参数配置", None))
         self.action_cableparam.setText(_translate("MainWindow", "缆索参数", None))
+        self.action_stopcapture.setText(_translate("MainWindow", "停止采集", None))
 
 from pyqtgraph import PlotWidget

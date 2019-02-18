@@ -11,6 +11,7 @@ import pyqtgraph as pg
 import time
 import sys
 import posix_ipc as posix
+import threading
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -88,6 +89,16 @@ class Code_MainWindow(Ui_MainWindow):
         self.GLW_localization.setMouseEnabled(x=False, y=False)
 
         self.action_paramconfig.triggered.connect(self.open_paramconfig_dlg)
+        self.action_startcapture.triggered.connect(self.start_capture)
+        self.action_stopcapture.triggered.connect(self.stop_capture)
+
+        self.running = threading.Event()
+        self.flag = threading.Event()
+        self.running.set()
+        self.flag.clear()
+        self.receive_thread = threading.Thread(name = "datareceiver", target = self.receive_message_queue)
+        self.receive_thread.start()
+        self.mq=posix.MessageQueue("/mq1", flags=posix.O_CREAT, mode=0o644)
 
         path = os.getcwd() + "//" + "input_data" +"//" + "6" + "//" + "100" + "//" + '0'
         self.draw_waveform_spectrum(path)
@@ -115,6 +126,20 @@ class Code_MainWindow(Ui_MainWindow):
         self.marker_sensor1.setData([self.sensor1_loc],[0])
         self.marker_sensor2.setData([self.sensor2_loc],[0])
         self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
+
+    def start_capture(self):
+        os.system("./out1 &")
+        self.flag.set()
+
+    def stop_capture(self):
+        self.flag.clear()
+        os.system("pkill out1")
+
+    def receive_message_queue(self):
+        while self.running.isSet():
+            self.flag.wait()
+            mesg,_=self.mq.receive()
+            print(mesg.decode())
     
     def draw_waveform_spectrum(self,path):
         pwd = os.getcwd()
@@ -195,17 +220,18 @@ class Code_MainWindow(Ui_MainWindow):
         self.text_source.setPos(40,0)
         self.text_source.setText(str(40)+"cm")
 
+    def closeEvent(self,event):
+        event.accept()
+        os._exit(0)
+
 def main():
-    os.system("./out1 &")
     app = QtGui.QApplication(sys.argv)
     ui_main = Code_MainWindow()
     ui_main.show()
     ret=app.exec_()
-    mq=posix.MessageQueue("/mq1")
-    mesg,_=mq.receive()
-    print(mesg.decode())
-    os.system("pkill out1")
-    mq.close()
+    ui_main.flag.set()
+    ui_main.running.clear()
+    ui_main.mq.close()
     posix.unlink_message_queue("/mq1")
     sys.exit(ret)
 

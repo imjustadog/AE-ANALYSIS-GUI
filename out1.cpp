@@ -30,7 +30,7 @@ int main(void) {
     while(1) {
         cout << "test" << endl;
 
-        mqd = mq_open("/mq1",O_WRONLY|O_CREAT, 0644, NULL);
+        mqd = mq_open("/mq1",O_WRONLY);
         if (mqd < 0) {
             cout << strerror(errno) << endl;
 	    return -1;
