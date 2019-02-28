@@ -45,8 +45,8 @@ int main(void) {
   struct timeval tv;
   struct timezone tz;   
   struct tm *t;
-  mqd_t mqd;
-  char sendbuf[100];
+  mqd_t mqd, mqf;
+  char timebuf[30];
 
   int fd, rc, fdw, i;
   int flag = 0;
@@ -55,7 +55,7 @@ int main(void) {
   time_t ptime;
   unsigned char folder_name[30];
   unsigned char *pfolder = folder_name;
-  unsigned char path[40];
+  unsigned char path[60];
 
   double time_before = 0.02;
   double voltage_threshold = 0.1;
@@ -80,9 +80,10 @@ int main(void) {
       *pfolder = '\0';
       break;
     }
-    if(*pfolder == ' ' || *pfolder == ':') {
+    else if(*pfolder == ' ') 
+        *pfolder = '_';
+    else if(*pfolder == ':') 
         *pfolder = '-';
-    }
     pfolder ++;
   }
   mkdir(folder_name, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP |S_IROTH | S_IWOTH |S_IXOTH);
@@ -97,8 +98,15 @@ int main(void) {
     exit(1);
   }
 
-  mqd = mq_open("/mq1",O_WRONLY);
+  mqd = mq_open("/mqd",O_WRONLY);
   if (mqd < 0) {
+      perror("message queue failed to read");
+      exit(1);
+  }
+  mq_send(mqd, folder_name, strlen(folder_name), 0);
+
+  mqf = mq_open("/mqf",O_WRONLY);
+  if (mqf < 0) {
       perror("message queue failed to read");
       exit(1);
   }
@@ -135,14 +143,13 @@ int main(void) {
     }
 
     if(flag == 1) {
-    	sprintf(path, "%s/%d", folder_name, capture_count);
         printf("%d\r\n", capture_count);
         gettimeofday(&tv, &tz);
         t = localtime(&tv.tv_sec);
-        sprintf(sendbuf,"%d-%d-%d_%d-%d-%d_%d", 1900+t->tm_year, 1+t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec/1000);
-        mq_send(mqd, sendbuf, strlen(sendbuf), 1); 
+        sprintf(timebuf,"%d-%d-%d_%d-%d-%d_%d", 1900+t->tm_year, 1+t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec/1000); 
         capture_count ++;
-    	fdw = open(path, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    	sprintf(path, "%s/%s", folder_name, timebuf);
+        fdw = open(path, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     	fifo_output_write(fifo, fdw);
     	flag = 2;
     }
@@ -154,6 +161,8 @@ int main(void) {
     	if(count == after_bags) {
     		count = 0;
     		flag = 0;
+                printf("%s\r\n", timebuf);
+                mq_send(mqf, timebuf, strlen(timebuf), 1);
     		//exit(0);
     	}
     }

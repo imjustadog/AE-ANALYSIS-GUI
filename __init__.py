@@ -12,6 +12,7 @@ import time
 import sys
 import posix_ipc as posix
 import threading
+import pywt
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -36,6 +37,7 @@ class Code_Dialog_paramconfig(Ui_Dialog_paramconfig):
         self.signal_getparamconfig.emit(dict_paramconfig)
 
 class Code_MainWindow(Ui_MainWindow):
+    signal_drawwavespec = QtCore.pyqtSignal(str)
 
     def __init__(self, parent=None):
         self.cable_length = 200
@@ -52,7 +54,7 @@ class Code_MainWindow(Ui_MainWindow):
         self.GLW_waveform.setLabel('left', "voltage/V")
         self.GLW_waveform.setLabel('bottom', "time/t")
         self.GLW_waveform.setTitle('waveform')
-        self.GLW_waveform.setDownsampling(ds=256,auto=False, mode='subsample')
+        self.GLW_waveform.setDownsampling(ds=512,auto=False, mode='subsample')
         self.curve_waveform1=pg.PlotDataItem(pen='g',name = 'ch1')
         self.curve_waveform2=pg.PlotDataItem(pen='b',name = 'ch2')
         self.GLW_waveform.addItem(self.curve_waveform1)
@@ -91,6 +93,9 @@ class Code_MainWindow(Ui_MainWindow):
         self.action_paramconfig.triggered.connect(self.open_paramconfig_dlg)
         self.action_startcapture.triggered.connect(self.start_capture)
         self.action_stopcapture.triggered.connect(self.stop_capture)
+        self.signal_drawwavespec.connect(self.draw_wavespec_str)
+
+        self.log_analysis = ""
 
         self.running = threading.Event()
         self.flag = threading.Event()
@@ -98,10 +103,16 @@ class Code_MainWindow(Ui_MainWindow):
         self.flag.clear()
         self.receive_thread = threading.Thread(name = "datareceiver", target = self.receive_message_queue)
         self.receive_thread.start()
-        self.mq=posix.MessageQueue("/mq1", flags=posix.O_CREAT, mode=0o644)
+        
+        self.mqd=posix.MessageQueue("/mqd", flags=posix.O_CREAT, mode=0o644)
+        self.mqf=posix.MessageQueue("/mqf", flags=posix.O_CREAT, mode=0o644)
 
-        path = os.getcwd() + "//" + "input_data" +"//" + "6" + "//" + "100" + "//" + '0'
-        self.draw_waveform_spectrum(path)
+        #path = os.getcwd() + "//" + "input_data" +"//" + "6" + "//" + "100" + "//" + '0'
+        #self.draw_waveform_spectrum(path)
+
+    @QtCore.pyqtSlot(str)
+    def draw_wavespec_str(self,filepath):
+        self.draw_waveform_spectrum(filepath)
 
     def open_paramconfig_dlg(self):
         self.ui_paramconfig = Code_Dialog_paramconfig()
@@ -128,53 +139,64 @@ class Code_MainWindow(Ui_MainWindow):
         self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
 
     def start_capture(self):
-        os.system("./out1 &")
+        os.system("./streamread &")
+        #os.system("./out1 &")
+        mesg,_=self.mqd.receive()
+        self.dirpath = mesg.decode()
+        print(self.dirpath)
         self.flag.set()
 
     def stop_capture(self):
         self.flag.clear()
-        os.system("pkill out1")
+        os.system("pkill streamread")
+        #os.system("pkill out1")
 
     def receive_message_queue(self):
         while self.running.isSet():
             self.flag.wait()
-            mesg,_=self.mq.receive()
-            print(mesg.decode())
+            mesg,_=self.mqf.receive()
+            filepath = self.dirpath + "/" + mesg.decode()
+            #filepath = "Thu_Feb_21_18-42-59_2019/2019-2-20_9-19-42_641"
+            print(filepath)
+            if os.path.exists(filepath):
+                self.signal_drawwavespec.emit(filepath)
     
     def draw_waveform_spectrum(self,path):
-        pwd = os.getcwd()
-        fb = open(path, "rb")
-        count = 0
+        #timestart = time.time()
+        #print("func start")
+        
         datax = []
         datay1 = []
         datay2 = []
-        while True:
-            data = fb.read(4)
-            if not data:
-                break
-            ch1, ch2 = struct.unpack('<HH', data)
-            ch1 = (float(ch1) - 8192) / 8192 * 2.5
-            ch2 = (float(ch2) - 8192) / 8192 * 2.5
-            datax.append(count * 0.0000001)
-            datay1.append(ch1)
-            datay2.append(ch2)
-            count = count + 1
 
-        fb.close()
+        with open(path, "rb") as fb:
+            data = fb.read()
 
+        ch1ch2 = struct.unpack("<"+str(int(len(data)/2))+"H", data)
+        ch1ch2 = np.array(ch1ch2)
+        ch1ch2 = (ch1ch2-8192)*2.5/8192
+
+        datay1 = ch1ch2[::2]
+        datay2 = ch1ch2[1::2]
+        datax = np.array(range(len(datay1)))* 0.0000001
+
+        #dataxd = datax[200000:700000:512]
+        #self.curve_waveform1.setData(dataxd,datay1[200000:700000:512])
+        #self.curve_waveform2.setData(dataxd,datay2[200000:700000:512])
+        
+        #print("read ok:%.2f"%(time.time() - timestart))
         self.curve_waveform1.setData(datax,datay1)
         self.curve_waveform2.setData(datax,datay2)
+        #print("draw wave:%.2f"%(time.time() - timestart))
 
         datay1 = datay1[200000:700000]
-        datay1 = datay2[200000:700000]
+        datay2 = datay2[200000:700000]
 
         fftnum = 8192
         std = 1500
         fftrepeat = 0
-
         axis_xf = range(int(fftnum/2))
         freq = [i * 10000000.0 / fftnum for i in axis_xf]
-
         index = 0
         magnitude1 = np.zeros(fftnum)
         magnitude2 = np.zeros(fftnum)
@@ -191,37 +213,61 @@ class Code_MainWindow(Ui_MainWindow):
             index += int(fftnum * (1 - fftrepeat))
             if index + fftnum > len(datay1):
                 break
-
+        #magnitude1 = np.abs(np.fft.fft(datay1))
+        #magnitude2 = np.abs(np.fft.fft(datay2))
+        #fftnum = len(magnitude1)
+        #axis_xf = range(int(fftnum/2))
+        #freq = [i * 10000000.0 / fftnum for i in axis_xf]
         start = int(fftnum / 500)
         end = int(fftnum / 25)
-
         magnitude1 = magnitude1[start:end]
-        maxmag1 = max(magnitude1)
-        magnitude1 = magnitude1 / maxmag1
-
+        magnitude1 = magnitude1 / (fftnum / 2)
         magnitude2 = magnitude2[start:end]
-        maxmag2 = max(magnitude2)
-        magnitude2 = magnitude2 / maxmag2
-
+        magnitude2 = magnitude2 / (fftnum / 2)
         freq = np.array(freq[start:end])
         freq = freq/1000
-
         self.curve_spectrum1.setData(freq,magnitude1)
         self.curve_spectrum2.setData(freq,magnitude2)
+        #print("draw spec:%.2f"%(time.time() - timestart))
 
-        ct = time.time()
-        local_time = time.localtime(ct)
-        data_head = time.strftime("%Y-%m-%d %H:%M:%S", local_time)
-        data_secs = (ct - int(ct)) * 1000
-        time_stamp = "%s.%03d" % (data_head, data_secs) + "  位置90cm处  " + "断丝概率60%"
-        self.textEdit_record.setText(time_stamp)
+        dt = 0.0000001
+        fs = 10000000
+        datay1 = datay1[int(50000):int(150000)]
+        datay2 = datay2[int(50000):int(150000)]
+        wavelet = 'morl'
+        c = pywt.central_frequency(wavelet)
+        fa = [320000]
+        scales = np.array(float(c)) * fs / np.array(fa)
+        [cfs1,frequencies1] = pywt.cwt(datay1,scales,wavelet,dt)
+        [cfs2,frequencies2] = pywt.cwt(datay2,scales,wavelet,dt)
+        power1 = abs(cfs1)
+        power2 = abs(cfs2)
+        mean1 = power1[0].mean()
+        power1[0] = power1[0] / mean1
+        mean2 =  power2[0].mean()
+        power2[0] = power2[0] / mean2
+        temp = signal.correlate(power1[0],power2[0], mode='same',method='fft')
+        corr=(np.where(temp == max(temp))[0][0]-len(temp) / 2 ) * dt * 1000
+        location = (self.sensor1_loc + self.sensor2_loc - corr / 0.057 * 20) / 2
 
-        self.marker_source.setData([40],[0])
-        self.text_source.setPos(40,0)
-        self.text_source.setText(str(40)+"cm")
+        _,log_datetime = path.split('/')
+        log_datetime = log_datetime.split("_")
+        log_datetime = log_datetime[0] + " " + ":".join(log_datetime[1].split('-')) + "." + log_datetime[2]
+        self.log_analysis += log_datetime + "  时间差%f"%(corr) + "  位置%.1fcm处  \r\n"%(location) #+ "断丝概率%d%%"%(60) + "\r\n"
+        self.textEdit_record.setText(self.log_analysis)
+        self.textEdit_record.moveCursor(QtGui.QTextCursor.End)
+
+        self.marker_source.setData([location],[0])
+        self.text_source.setPos(location,0)
+        self.text_source.setText("%.1fcm"%(location))
+        #print("calc location:%.2f"%(time.time() - timestart))
 
     def closeEvent(self,event):
         event.accept()
+        self.mqd.close()
+        self.mqf.close()
+        posix.unlink_message_queue("/mqd")
+        posix.unlink_message_queue("/mqf")
         os._exit(0)
 
 def main():
@@ -231,8 +277,10 @@ def main():
     ret=app.exec_()
     ui_main.flag.set()
     ui_main.running.clear()
-    ui_main.mq.close()
-    posix.unlink_message_queue("/mq1")
+    ui_main.mqd.close()
+    ui_main.mqf.close()
+    posix.unlink_message_queue("/mqd")
+    posix.unlink_message_queue("/mqf")
     sys.exit(ret)
 
 if __name__ == "__main__":
