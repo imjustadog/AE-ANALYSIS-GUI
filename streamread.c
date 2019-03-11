@@ -161,7 +161,7 @@ int main(void) {
     	if(count == after_bags) {
     		count = 0;
     		flag = 0;
-                printf("%s\r\n", timebuf);
+                //printf("%s\r\n", timebuf);
                 mq_send(mqf, timebuf, strlen(timebuf), 1);
     		//exit(0);
     	}

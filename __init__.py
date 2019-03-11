@@ -13,6 +13,7 @@ import sys
 import posix_ipc as posix
 import threading
 import pywt
+from math import pi,sqrt
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -44,6 +45,8 @@ class Code_MainWindow(Ui_MainWindow):
         self.sensor1_loc = 0
         self.sensor2_loc = 200
         self.speed_compensate = 1
+        self.k0 = []
+        self.k0_norm = []
 
         super(Code_MainWindow, self).__init__()
         self.setupUi(self)
@@ -90,6 +93,9 @@ class Code_MainWindow(Ui_MainWindow):
         self.GLW_localization.addItem(self.text_sensor2)
         self.GLW_localization.setMouseEnabled(x=False, y=False)
 
+        self.action_startcapture.setEnabled(True)
+        self.action_stopcapture.setEnabled(False)
+
         self.action_paramconfig.triggered.connect(self.open_paramconfig_dlg)
         self.action_startcapture.triggered.connect(self.start_capture)
         self.action_stopcapture.triggered.connect(self.stop_capture)
@@ -109,6 +115,7 @@ class Code_MainWindow(Ui_MainWindow):
 
         #path = os.getcwd() + "//" + "input_data" +"//" + "6" + "//" + "100" + "//" + '0'
         #self.draw_waveform_spectrum(path)
+        self.calc_k0()
 
     @QtCore.pyqtSlot(str)
     def draw_wavespec_str(self,filepath):
@@ -139,6 +146,8 @@ class Code_MainWindow(Ui_MainWindow):
         self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
 
     def start_capture(self):
+        self.action_startcapture.setEnabled(False)
+        self.action_stopcapture.setEnabled(True)
         os.system("./streamread &")
         #os.system("./out1 &")
         mesg,_=self.mqd.receive()
@@ -147,6 +156,8 @@ class Code_MainWindow(Ui_MainWindow):
         self.flag.set()
 
     def stop_capture(self):
+        self.action_startcapture.setEnabled(True)
+        self.action_stopcapture.setEnabled(False)
         self.flag.clear()
         os.system("pkill streamread")
         #os.system("pkill out1")
@@ -157,9 +168,72 @@ class Code_MainWindow(Ui_MainWindow):
             mesg,_=self.mqf.receive()
             filepath = self.dirpath + "/" + mesg.decode()
             #filepath = "Thu_Feb_21_18-42-59_2019/2019-2-20_9-19-42_641"
-            print(filepath)
+            #print(filepath)
             if os.path.exists(filepath):
                 self.signal_drawwavespec.emit(filepath)
+
+    def calc_k0(self):
+        fig_size = 20
+        interval = 5
+        dt = 0.0000001 * interval
+        fs = 10000000 / interval
+        start = 250000
+        end = 350000
+        path = "samples"
+        filelisttemp = os.listdir(path)
+        for filename in filelisttemp:
+            filepath = path + "/" + filename
+            with open(filepath, "rb") as fb:
+                data = fb.read()
+            ch1ch2 = struct.unpack("<"+str(int(len(data)/2))+"H", data)
+            ch1ch2 = np.array(ch1ch2)
+            ch1ch2 = (ch1ch2-8192)*2.5/8192
+            datay1 = ch1ch2[::2]
+            datay2 = ch1ch2[1::2]
+            data1 = datay1[start:end:interval]
+            data2 = datay2[start:end:interval]
+            wavelet = 'morl'
+            c = pywt.central_frequency(wavelet)
+            fa = np.arange(400000, 20000 - 1, -20000)
+            scales = np.array(float(c)) * fs / np.array(fa)
+            [cfs1,frequencies1] = pywt.cwt(data1,scales,wavelet,dt)
+            [cfs2,frequencies2] = pywt.cwt(data2,scales,wavelet,dt)
+            power1 = (abs(cfs1)) ** 2
+            power2 = (abs(cfs2)) ** 2
+            length_now = len(power1[0])
+            power1 = np.reshape(power1,(len(power1),fig_size,int(length_now/fig_size)))
+            power2 = np.reshape(power2,(len(power2),fig_size,int(length_now/fig_size)))
+            power1 = np.log10(np.mean(power1,axis=2))
+            power2 = np.log10(np.mean(power2,axis=2))
+            mx = power1.max()
+            mn = power1.min()
+            power1 = (power1-mn) / (mx-mn) * 255.0
+            power1 = np.floor(power1)
+            mx = power2.max()
+            mn = power2.min()
+            power2 = (power2-mn) / (mx-mn) * 255.0
+            power2 = np.floor(power2)
+            self.k0.append(power1)
+            self.k0_norm.append(sqrt((power1 ** 2).sum()))
+            self.k0.append(power2)
+            self.k0_norm.append(sqrt((power2 ** 2).sum()))
+
+    def calc_cos(self,k1,k2,k1_norm,k2_norm):
+        max_cos = 0
+        for index in range(len(self.k0_norm)):
+            k0k1 = (self.k0[index] * k1).sum()
+            cos1 = k0k1 / self.k0_norm[index] / k1_norm
+            k0k2 = (self.k0[index] * k2).sum()
+            cos2 = k0k2 / self.k0_norm[index] / k2_norm
+            loss1 = 1 - cos1
+            cos_dis1 = 1 - loss1 * 10
+            loss2 = 1 - cos2
+            cos_dis2 = 1 - loss2 * 10
+            if cos_dis1 > max_cos:
+                max_cos = cos_dis1
+            if cos_dis2 > max_cos:
+                max_cos = cos_dis2
+        return max_cos
     
     def draw_waveform_spectrum(self,path):
         #timestart = time.time()
@@ -250,10 +324,38 @@ class Code_MainWindow(Ui_MainWindow):
         corr=(np.where(temp == max(temp))[0][0]-len(temp) / 2 ) * dt * 1000
         location = (self.sensor1_loc + self.sensor2_loc - corr / 0.057 * 20) / 2
 
+        datay1 = datay1[0:100000:5]
+        datay2 = datay2[0:100000:5]
+        dt = 0.0000001 * 5
+        fs = 10000000 / 5
+        fa = np.arange(400000, 20000 - 1, -20000)
+        scales = np.array(float(c)) * fs / np.array(fa)
+        [cfs1,frequencies1] = pywt.cwt(datay1,scales,wavelet,dt)
+        [cfs2,frequencies2] = pywt.cwt(datay2,scales,wavelet,dt)
+        power1 = (abs(cfs1)) ** 2
+        power2 = (abs(cfs2)) ** 2
+        length_now = len(power1[0])
+        fig_size = 20
+        power1 = np.reshape(power1,(len(power1),fig_size,int(length_now/fig_size)))
+        power2 = np.reshape(power2,(len(power2),fig_size,int(length_now/fig_size)))
+        power1 = np.log10(np.mean(power1,axis=2))
+        power2 = np.log10(np.mean(power2,axis=2))
+        mx = power1.max()
+        mn = power1.min()
+        power1 = (power1-mn) / (mx-mn) * 255.0
+        power1 = np.floor(power1)
+        mx = power2.max()
+        mn = power2.min()
+        power2 = (power2-mn) / (mx-mn) * 255.0
+        power2 = np.floor(power2)
+        power1_norm = sqrt((power1 ** 2).sum())
+        power2_norm = sqrt((power2 ** 2).sum())
+        cos_dis = self.calc_cos(power1,power2,power1_norm,power2_norm)
+
         _,log_datetime = path.split('/')
         log_datetime = log_datetime.split("_")
         log_datetime = log_datetime[0] + " " + ":".join(log_datetime[1].split('-')) + "." + log_datetime[2]
-        self.log_analysis += log_datetime + "  时间差%f"%(corr) + "  位置%.1fcm处  \r\n"%(location) #+ "断丝概率%d%%"%(60) + "\r\n"
+        self.log_analysis += log_datetime + "  时间差%f"%(corr) + "  位置%.1fcm处"%(location) + "  断丝概率%d%%"%(cos_dis * 100) + "\r\n"
         self.textEdit_record.setText(self.log_analysis)
         self.textEdit_record.moveCursor(QtGui.QTextCursor.End)
 
