@@ -35,130 +35,41 @@
      <x>30</x>
      <y>20</y>
      <width>287</width>
-     <height>198</height>
+     <height>131</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <widget class="QLabel" name="label">
+    <item row="0" column="1">
+     <widget class="QLineEdit" name="lineEdit_card1_acoustic_speed"/>
+    </item>
+    <item row="0" column="2">
+     <widget class="QLabel" name="label_5">
       <property name="text">
-       <string>缆索总长</string>
+       <string>m/s</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>采集卡2缆索声速</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>采集卡1缆索声速</string>
       </property>
      </widget>
     </item>
     <item row="1" column="1">
-     <widget class="QLineEdit" name="lineEdit_sensor1loc"/>
+     <widget class="QLineEdit" name="lineEdit_card2_acoustic_speed"/>
     </item>
     <item row="1" column="2">
-     <widget class="QLabel" name="label_5">
-      <property name="text">
-       <string>cm</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="label_3">
-      <property name="text">
-       <string>传感器2位置</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QLineEdit" name="lineEdit_cablelength"/>
-    </item>
-    <item row="1" column="0">
-     <widget class="QLabel" name="label_2">
-      <property name="text">
-       <string>传感器1位置</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="1">
-     <widget class="QLineEdit" name="lineEdit_sensor2loc"/>
-    </item>
-    <item row="2" column="2">
      <widget class="QLabel" name="label_6">
       <property name="text">
-       <string>cm</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="2">
-     <widget class="QLabel" name="label_4">
-      <property name="text">
-       <string>cm</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <widget class="QLabel" name="label_7">
-      <property name="text">
-       <string>声速补偿系数</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="1">
-     <widget class="QLineEdit" name="lineEdit_speedcompensate"/>
-    </item>
-    <item row="2" column="3">
-     <widget class="QCheckBox" name="checkBox_sensor2enabled">
-      <property name="text">
-       <string>使能</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="3">
-     <widget class="QCheckBox" name="checkBox_sensor1enabled">
-      <property name="text">
-       <string>使能</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="1">
-     <widget class="QLineEdit" name="lineEdit_sensor3loc"/>
-    </item>
-    <item row="4" column="1">
-     <widget class="QLineEdit" name="lineEdit_sensor4loc"/>
-    </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="label_8">
-      <property name="text">
-       <string>传感器3位置</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="label_9">
-      <property name="text">
-       <string>传感器4位置</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="2">
-     <widget class="QLabel" name="label_10">
-      <property name="text">
-       <string>cm</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="2">
-     <widget class="QLabel" name="label_11">
-      <property name="text">
-       <string>cm</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="3">
-     <widget class="QCheckBox" name="checkBox_sensor3enabled">
-      <property name="text">
-       <string>使能</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="3">
-     <widget class="QCheckBox" name="checkBox_sensor4enabled">
-      <property name="text">
-       <string>使能</string>
+       <string>m/s</string>
       </property>
      </widget>
     </item>

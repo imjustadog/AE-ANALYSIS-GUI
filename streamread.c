@@ -40,7 +40,7 @@ void output_write(int fd, unsigned char *buf, int len);
 void fifo_write(struct xillyfifo *fifo, unsigned char *buf, int len);
 void fifo_output_write(struct xillyfifo *fifo, int fd);
 
-int main(void) {
+int main(int argc, char *argv[]) {
 
   struct timeval tv;
   struct timezone tz;   
@@ -54,8 +54,9 @@ int main(void) {
   int capture_count = 0;
   time_t ptime;
   unsigned char folder_name[30];
+  unsigned char folder_path[40];
   unsigned char *pfolder = folder_name;
-  unsigned char path[60];
+  unsigned char path[70];
 
   double time_before = 0.02;
   double voltage_threshold = 0.1;
@@ -66,6 +67,18 @@ int main(void) {
   unsigned long after_bags = pow(2,(int)(1 + log2(time_after * 10000000 / 32))); //16384
 
   struct xillyfifo *fifo = &strct_fifo;
+
+  mqd = mq_open("/mqd",O_WRONLY);
+  if (mqd < 0) {
+      perror("message queue failed to read");
+      exit(1);
+  }
+
+  mqf = mq_open("/mqf",O_WRONLY);
+  if (mqf < 0) {
+      perror("message queue failed to read");
+      exit(1);
+  }
 
   fifo->baseaddr = NULL;
   fifo->size = before_cache;
@@ -86,30 +99,19 @@ int main(void) {
         *pfolder = '-';
     pfolder ++;
   }
-  mkdir(folder_name, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP |S_IROTH | S_IWOTH |S_IXOTH);
+
   fd = open("/dev/xillybus_read1_32", O_RDONLY);
   //fd = open("xillybus_read_32", O_RDONLY);
 
   if (fd < 0) {
-    if (errno == ENODEV)
-      fprintf(stderr, "(Maybe it is a write-only file?)\n");
-
     perror("Failed to open devfile");
+    mq_send(mqd, "x", strlen(folder_name), 0);
     exit(1);
   }
 
-  mqd = mq_open("/mqd",O_WRONLY);
-  if (mqd < 0) {
-      perror("message queue failed to read");
-      exit(1);
-  }
-  mq_send(mqd, folder_name, strlen(folder_name), 0);
-
-  mqf = mq_open("/mqf",O_WRONLY);
-  if (mqf < 0) {
-      perror("message queue failed to read");
-      exit(1);
-  }
+  sprintf(folder_path, "%s/%s", argv[1], folder_name);
+  mkdir(folder_path, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP |S_IROTH | S_IWOTH |S_IXOTH);
+  mq_send(mqd, folder_path, strlen(folder_path), 0);
 
   while (1) {
     rc = read(fd, buf, sizeof(buf));
@@ -148,7 +150,7 @@ int main(void) {
         t = localtime(&tv.tv_sec);
         sprintf(timebuf,"%d-%d-%d_%d-%d-%d_%d", 1900+t->tm_year, 1+t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec/1000); 
         capture_count ++;
-    	sprintf(path, "%s/%s", folder_name, timebuf);
+    	sprintf(path, "%s/%s", folder_path, timebuf);
         fdw = open(path, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     	fifo_output_write(fifo, fdw);
     	flag = 2;

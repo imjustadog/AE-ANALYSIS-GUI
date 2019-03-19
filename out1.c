@@ -14,7 +14,7 @@
 
 unsigned char buf[128];
 
-int main(void) {
+int main(int agrc, char *argv[]) {
     struct timeval tv;
     struct timezone tz;   
     struct tm *t;
@@ -23,8 +23,9 @@ int main(void) {
 
     time_t ptime;
     unsigned char folder_name[30];
+    unsigned char folder_path[40];
     unsigned char *pfolder = folder_name;
-    unsigned char path[60];
+    unsigned char path[70];
 
     time(&ptime);
     strcpy(folder_name, ctime(&ptime));
@@ -39,6 +40,10 @@ int main(void) {
             *pfolder = '-';
         pfolder ++;
     }
+
+    sprintf(folder_path, "%s/%s", argv[1], folder_name);
+    mkdir(folder_path, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP |S_IROTH | S_IWOTH |S_IXOTH);
+
 
     mqd = mq_open("/mqd",O_WRONLY);
     if (mqd < 0) {

@@ -31,27 +31,30 @@ class Code_Dialog_paramconfig(Ui_Dialog_paramconfig):
 
     def signal_emitter(self):
         dict_paramconfig = {}
-        dict_paramconfig['cable_length'] = float(self.lineEdit_cablelength.text())
-        dict_paramconfig['sensor1_loc'] = float(self.lineEdit_sensor1loc.text())
-        dict_paramconfig['sensor2_loc'] = float(self.lineEdit_sensor2loc.text())
-        dict_paramconfig['speed_compensate'] = float(self.lineEdit_speedcompensate.text())
+        dict_paramconfig['card1_acoustic_speed'] = float(self.lineEdit_card1_acoustic_speed.text())
+        dict_paramconfig['card2_acoustic_speed'] = float(self.lineEdit_card2_acoustic_speed.text())
         self.signal_getparamconfig.emit(dict_paramconfig)
 
 class Code_MainWindow(Ui_MainWindow):
     signal_drawwavespec = QtCore.pyqtSignal(str)
 
     def __init__(self, parent=None):
-        self.cable_length = 200
-        self.sensor1_loc = 0
-        self.sensor2_loc = 200
-        self.speed_compensate = 1
+        self.cable_length = 2
+        self.sensor1_loc = 2
+        self.sensor2_loc = 0
+        self.card1_acoustic_speed =  200 / 0.057
         self.k0 = []
         self.k0_norm = []
 
         super(Code_MainWindow, self).__init__()
         self.setupUi(self)
         self.showMaximized();
-        self.centralwidget.setLayout(self.gridLayout_figure)
+        #self.tab_card1.setLayout(self.gridLayout_figure)
+
+        self.lineEdit_card1_sensor1_location.setText(str(self.sensor1_loc))
+        self.lineEdit_card1_sensor2_location.setText(str(self.sensor2_loc))
+        self.lineEdit_card1_cable_length.setText(str(self.cable_length))
+        self.lineEdit_card1_acoustic_speed.setText("%.3f"%(self.card1_acoustic_speed))
 
         self.GLW_waveform.addLegend(offset=(-10,-70))
         self.GLW_waveform.setLabel('left', "voltage/V")
@@ -88,6 +91,8 @@ class Code_MainWindow(Ui_MainWindow):
         self.text_sensor2 = pg.TextItem(text="sensor2",anchor=(0.5,0))
         self.text_sensor1.setPos(self.sensor1_loc,0)
         self.text_sensor2.setPos(self.sensor2_loc,0)
+        self.text_sensor1.setText("sensor1\r\n%.1fm"%(self.sensor1_loc))
+        self.text_sensor2.setText("sensor2\r\n%.1fm"%(self.sensor2_loc))
         self.GLW_localization.addItem(self.text_source)
         self.GLW_localization.addItem(self.text_sensor1)
         self.GLW_localization.addItem(self.text_sensor2)
@@ -96,6 +101,7 @@ class Code_MainWindow(Ui_MainWindow):
         self.action_startcapture.setEnabled(True)
         self.action_stopcapture.setEnabled(False)
 
+        self.pushButton_card1_config_ok.clicked.connect(self.change_card1_config)
         self.action_paramconfig.triggered.connect(self.open_paramconfig_dlg)
         self.action_startcapture.triggered.connect(self.start_capture)
         self.action_stopcapture.triggered.connect(self.stop_capture)
@@ -117,43 +123,54 @@ class Code_MainWindow(Ui_MainWindow):
         #self.draw_waveform_spectrum(path)
         self.calc_k0()
 
+        self.start_capture()
+
+    def change_card1_config(self):
+        self.cable_length = float(self.lineEdit_card1_cable_length.text())
+        self.card1_acoustic_speed = float(self.lineEdit_card1_acoustic_speed.text())
+        self.sensor1_loc = float(self.lineEdit_card1_sensor1_location.text())
+        self.sensor2_loc = float(self.lineEdit_card1_sensor2_location.text())
+        self.text_sensor1.setPos(self.sensor1_loc,0)
+        self.text_sensor2.setPos(self.sensor2_loc,0)
+        self.text_sensor1.setText("sensor1\r\n%.1fm"%(self.sensor1_loc))
+        self.text_sensor2.setText("sensor2\r\n%.1fm"%(self.sensor2_loc))
+        self.line_cable.setData([0,self.cable_length],[0,0])
+        self.marker_source.setData([self.sensor1_loc],[0])
+        self.marker_sensor1.setData([self.sensor1_loc],[0])
+        self.marker_sensor2.setData([self.sensor2_loc],[0])
+        self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
+            
+
     @QtCore.pyqtSlot(str)
     def draw_wavespec_str(self,filepath):
         self.draw_waveform_spectrum(filepath)
 
     def open_paramconfig_dlg(self):
         self.ui_paramconfig = Code_Dialog_paramconfig()
-        self.ui_paramconfig.lineEdit_cablelength.setText(str(self.cable_length))
-        self.ui_paramconfig.lineEdit_sensor1loc.setText(str(self.sensor1_loc))
-        self.ui_paramconfig.lineEdit_sensor2loc.setText(str(self.sensor2_loc))
-        self.ui_paramconfig.lineEdit_sensor3loc.setText("0")
-        self.ui_paramconfig.lineEdit_sensor4loc.setText("0")
-        self.ui_paramconfig.lineEdit_speedcompensate.setText(str(self.speed_compensate))
+        self.ui_paramconfig.lineEdit_card1_acoustic_speed.setText("%.1f"%(self.card1_acoustic_speed))
+        self.ui_paramconfig.lineEdit_card2_acoustic_speed.setText("%.1f"%(self.card2_acoustic_speed))
         self.ui_paramconfig.show()
         self.ui_paramconfig.signal_getparamconfig.connect(self.get_paramconfig_dict)
 
     @QtCore.pyqtSlot(dict)
     def get_paramconfig_dict(self,dict_paramconfig):
-        self.cable_length = dict_paramconfig['cable_length']
-        self.sensor1_loc = dict_paramconfig['sensor1_loc']
-        self.sensor2_loc = dict_paramconfig['sensor2_loc']
-        self.text_sensor1.setPos(self.sensor1_loc,0)
-        self.text_sensor2.setPos(self.sensor2_loc,0)
-        self.line_cable.setData([0,self.cable_length],[0,0])
-        self.marker_source.setData([self.sensor1_loc],[0])
-        self.marker_sensor1.setData([self.sensor1_loc],[0])
-        self.marker_sensor2.setData([self.sensor2_loc],[0])
-        self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
+        self.card1_acoustic_speed = dict_paramconfig['card1_acoustic_speed']
+        self.card2_acoustic_speed = dict_paramconfig['card2_acoustic_speed']
 
     def start_capture(self):
-        self.action_startcapture.setEnabled(False)
-        self.action_stopcapture.setEnabled(True)
-        os.system("./streamread &")
+        os.system("./streamread card1_data &")
         #os.system("./out1 &")
         mesg,_=self.mqd.receive()
-        self.dirpath = mesg.decode()
-        print(self.dirpath)
-        self.flag.set()
+        mesg_receive = mesg.decode()
+        if mesg_receive[0] == 'x' :
+            self.radioButton_card1_offline.setChecked(True)
+        else:
+            self.radioButton_card1_online.setChecked(True)
+            self.action_startcapture.setEnabled(False)
+            self.action_stopcapture.setEnabled(True)
+            self.dirpath = mesg_receive
+            print(self.dirpath)
+            self.flag.set()
 
     def stop_capture(self):
         self.action_startcapture.setEnabled(True)
@@ -321,8 +338,8 @@ class Code_MainWindow(Ui_MainWindow):
         mean2 =  power2[0].mean()
         power2[0] = power2[0] / mean2
         temp = signal.correlate(power1[0],power2[0], mode='same',method='fft')
-        corr=(np.where(temp == max(temp))[0][0]-len(temp) / 2 ) * dt * 1000
-        location = (self.sensor1_loc + self.sensor2_loc - corr / 0.057 * 20) / 2
+        corr=(np.where(temp == max(temp))[0][0]-len(temp) / 2 ) * dt
+        location = (self.sensor1_loc + self.sensor2_loc - corr * self.card1_acoustic_speed) / 2
 
         datay1 = datay1[0:100000:5]
         datay2 = datay2[0:100000:5]
@@ -352,10 +369,10 @@ class Code_MainWindow(Ui_MainWindow):
         power2_norm = sqrt((power2 ** 2).sum())
         cos_dis = self.calc_cos(power1,power2,power1_norm,power2_norm)
 
-        _,log_datetime = path.split('/')
+        _,_,log_datetime = path.split('/')
         log_datetime = log_datetime.split("_")
         log_datetime = log_datetime[0] + " " + ":".join(log_datetime[1].split('-')) + "." + log_datetime[2]
-        self.log_analysis += log_datetime + "  时间差%f"%(corr) + "  位置%.1fcm处"%(location) + "  断丝概率%d%%"%(cos_dis * 100) + "\r\n"
+        self.log_analysis += log_datetime + "  时间差%fms"%(corr * 1000) + "  位置%.1fm处"%(location) + "  断丝概率%d%%"%(cos_dis * 100) + "\r\n"
         self.textEdit_record.setText(self.log_analysis)
         self.textEdit_record.moveCursor(QtGui.QTextCursor.End)
 
