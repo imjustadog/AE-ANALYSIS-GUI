@@ -31,18 +31,25 @@ class Code_Dialog_paramconfig(Ui_Dialog_paramconfig):
 
     def signal_emitter(self):
         dict_paramconfig = {}
-        dict_paramconfig['card1_acoustic_speed'] = float(self.lineEdit_card1_acoustic_speed.text())
-        dict_paramconfig['card2_acoustic_speed'] = float(self.lineEdit_card2_acoustic_speed.text())
+        dict_paramconfig['card1_best_frequency'] = int(self.lineEdit_card1_best_frequency.text())
+        dict_paramconfig['card2_best_frequency'] = int(self.lineEdit_card2_best_frequency.text())
         self.signal_getparamconfig.emit(dict_paramconfig)
 
 class Code_MainWindow(Ui_MainWindow):
     signal_drawwavespec = QtCore.pyqtSignal(str)
 
     def __init__(self, parent=None):
+
         self.cable_length = 2
         self.sensor1_loc = 2
         self.sensor2_loc = 0
+
         self.card1_acoustic_speed =  200 / 0.057
+        self.card1_best_frequency = 320000
+
+        self.card2_acoustic_speed =  200 / 0.057
+        self.card2_best_frequency = 320000
+
         self.k0 = []
         self.k0_norm = []
 
@@ -147,29 +154,27 @@ class Code_MainWindow(Ui_MainWindow):
 
     def open_paramconfig_dlg(self):
         self.ui_paramconfig = Code_Dialog_paramconfig()
-        self.ui_paramconfig.lineEdit_card1_acoustic_speed.setText("%.1f"%(self.card1_acoustic_speed))
-        self.ui_paramconfig.lineEdit_card2_acoustic_speed.setText("%.1f"%(self.card2_acoustic_speed))
+        self.ui_paramconfig.lineEdit_card1_best_frequency.setText("%d"%(self.card1_best_frequency))
+        self.ui_paramconfig.lineEdit_card2_best_frequency.setText("%d"%(self.card2_best_frequency))
         self.ui_paramconfig.show()
         self.ui_paramconfig.signal_getparamconfig.connect(self.get_paramconfig_dict)
 
     @QtCore.pyqtSlot(dict)
     def get_paramconfig_dict(self,dict_paramconfig):
-        self.card1_acoustic_speed = dict_paramconfig['card1_acoustic_speed']
-        self.card2_acoustic_speed = dict_paramconfig['card2_acoustic_speed']
+        self.card1_best_frequency = dict_paramconfig['card1_best_frequency']
+        self.card2_best_frequency = dict_paramconfig['card2_best_frequency']
 
     def start_capture(self):
-        os.system("./streamread card1_data &")
+        os.system("./streamread xillybus_read1_32 card1_data &")
         #os.system("./out1 &")
         mesg,_=self.mqd.receive()
         mesg_receive = mesg.decode()
-        if mesg_receive[0] == 'x' :
+        if mesg_receive == "x" :
             self.radioButton_card1_offline.setChecked(True)
         else:
             self.radioButton_card1_online.setChecked(True)
             self.action_startcapture.setEnabled(False)
             self.action_stopcapture.setEnabled(True)
-            self.dirpath = mesg_receive
-            print(self.dirpath)
             self.flag.set()
 
     def stop_capture(self):
@@ -183,7 +188,7 @@ class Code_MainWindow(Ui_MainWindow):
         while self.running.isSet():
             self.flag.wait()
             mesg,_=self.mqf.receive()
-            filepath = self.dirpath + "/" + mesg.decode()
+            filepath = mesg.decode()
             #filepath = "Thu_Feb_21_18-42-59_2019/2019-2-20_9-19-42_641"
             #print(filepath)
             if os.path.exists(filepath):
@@ -327,7 +332,7 @@ class Code_MainWindow(Ui_MainWindow):
         datay2 = datay2[int(50000):int(150000)]
         wavelet = 'morl'
         c = pywt.central_frequency(wavelet)
-        fa = [320000]
+        fa = [self.card1_best_frequency]
         scales = np.array(float(c)) * fs / np.array(fa)
         [cfs1,frequencies1] = pywt.cwt(datay1,scales,wavelet,dt)
         [cfs2,frequencies2] = pywt.cwt(datay2,scales,wavelet,dt)
@@ -383,6 +388,7 @@ class Code_MainWindow(Ui_MainWindow):
 
     def closeEvent(self,event):
         event.accept()
+        os.system("pkill streamread")
         self.mqd.close()
         self.mqf.close()
         posix.unlink_message_queue("/mqd")
@@ -394,6 +400,7 @@ def main():
     ui_main = Code_MainWindow()
     ui_main.show()
     ret=app.exec_()
+    os.system("pkill streamread")
     ui_main.flag.set()
     ui_main.running.clear()
     ui_main.mqd.close()
