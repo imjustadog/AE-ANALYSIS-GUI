@@ -3,6 +3,7 @@
 from PyQt4 import QtGui, QtCore
 from UiPy_MainWindow import Ui_MainWindow
 from UiPy_Dialog_paramconfig import Ui_Dialog_paramconfig
+from calibration import Code_Dialog_calibration
 import numpy as np
 import struct
 import os
@@ -52,6 +53,8 @@ class Code_MainWindow(Ui_MainWindow):
 
         self.k0 = []
         self.k0_norm = []
+        self.mqd = ""
+        self.mqf = ""
 
         super(Code_MainWindow, self).__init__()
         self.setupUi(self)
@@ -107,12 +110,14 @@ class Code_MainWindow(Ui_MainWindow):
 
         self.action_startcapture.setEnabled(True)
         self.action_stopcapture.setEnabled(False)
+        self.radioButton_card1_offline.setChecked(True)
 
         self.pushButton_card1_config_ok.clicked.connect(self.change_card1_config)
         self.action_paramconfig.triggered.connect(self.open_paramconfig_dlg)
         self.action_startcapture.triggered.connect(self.start_capture)
         self.action_stopcapture.triggered.connect(self.stop_capture)
         self.signal_drawwavespec.connect(self.draw_wavespec_str)
+        self.pushButton_card1_acoustic_speed_test.clicked.connect(self.open_calibration_dlg)
 
         self.log_analysis = ""
 
@@ -130,7 +135,7 @@ class Code_MainWindow(Ui_MainWindow):
         #self.draw_waveform_spectrum(path)
         self.calc_k0()
 
-        self.start_capture()
+        #self.start_capture()
 
     def change_card1_config(self):
         self.cable_length = float(self.lineEdit_card1_cable_length.text())
@@ -146,11 +151,23 @@ class Code_MainWindow(Ui_MainWindow):
         self.marker_sensor1.setData([self.sensor1_loc],[0])
         self.marker_sensor2.setData([self.sensor2_loc],[0])
         self.GLW_localization.setRange(QtCore.QRectF(0,0,self.cable_length,0))
-            
 
     @QtCore.pyqtSlot(str)
     def draw_wavespec_str(self,filepath):
         self.draw_waveform_spectrum(filepath)
+
+    def open_calibration_dlg(self):
+        self.ui_calibration = Code_Dialog_calibration()
+        self.ui_calibration.show()
+        self.ui_calibration.signal_getcalibration.connect(self.get_calibration_list)
+
+    @QtCore.pyqtSlot(list)
+    def get_calibration_list(self,list_calibration):
+        if list_calibration[0] != "":
+            self.card1_acoustic_speed = float(list_calibration[0])
+            self.lineEdit_card1_acoustic_speed.setText("%.3f"%(self.card1_acoustic_speed))
+        if list_calibration[1] != "":
+            self.card1_best_frequency = float(list_calibration[1])
 
     def open_paramconfig_dlg(self):
         self.ui_paramconfig = Code_Dialog_paramconfig()
@@ -165,7 +182,7 @@ class Code_MainWindow(Ui_MainWindow):
         self.card2_best_frequency = dict_paramconfig['card2_best_frequency']
 
     def start_capture(self):
-        os.system("./streamread xillybus_read1_32 card1_data &")
+        os.system("./testread xillybus_read1_32 card1_data &")
         #os.system("./out1 &")
         mesg,_=self.mqd.receive()
         mesg_receive = mesg.decode()
@@ -178,10 +195,11 @@ class Code_MainWindow(Ui_MainWindow):
             self.flag.set()
 
     def stop_capture(self):
+        self.radioButton_card1_offline.setChecked(True)
         self.action_startcapture.setEnabled(True)
         self.action_stopcapture.setEnabled(False)
         self.flag.clear()
-        os.system("pkill streamread")
+        os.system("pkill testread")
         #os.system("pkill out1")
 
     def receive_message_queue(self):
@@ -344,7 +362,9 @@ class Code_MainWindow(Ui_MainWindow):
         power2[0] = power2[0] / mean2
         temp = signal.correlate(power1[0],power2[0], mode='same',method='fft')
         corr=(np.where(temp == max(temp))[0][0]-len(temp) / 2 ) * dt
-        location = (self.sensor1_loc + self.sensor2_loc - corr * self.card1_acoustic_speed) / 2
+        if self.sensor1_loc > self.sensor2_loc:
+            corr = -1.0 * corr
+        location = (self.sensor1_loc + self.sensor2_loc + corr * self.card1_acoustic_speed) / 2
 
         datay1 = datay1[0:100000:5]
         datay2 = datay2[0:100000:5]
@@ -388,11 +408,15 @@ class Code_MainWindow(Ui_MainWindow):
 
     def closeEvent(self,event):
         event.accept()
-        os.system("pkill streamread")
-        self.mqd.close()
-        self.mqf.close()
-        posix.unlink_message_queue("/mqd")
-        posix.unlink_message_queue("/mqf")
+        os.system("pkill testread")
+        if self.mqd != "":
+            self.mqd.close()
+            posix.unlink_message_queue("/mqd")
+            self.mqd = ""
+        if self.mqf != "":
+            self.mqf.close()
+            posix.unlink_message_queue("/mqf")
+            self.mqf = ""
         os._exit(0)
 
 def main():
@@ -400,13 +424,15 @@ def main():
     ui_main = Code_MainWindow()
     ui_main.show()
     ret=app.exec_()
-    os.system("pkill streamread")
+    os.system("pkill testread")
     ui_main.flag.set()
     ui_main.running.clear()
-    ui_main.mqd.close()
-    ui_main.mqf.close()
-    posix.unlink_message_queue("/mqd")
-    posix.unlink_message_queue("/mqf")
+    if ui_main.mqd != "":
+        ui_main.mqd.close()
+        posix.unlink_message_queue("/mqd")
+    if ui_main.mqf != "":
+        ui_main.mqf.close()
+        posix.unlink_message_queue("/mqf")
     sys.exit(ret)
 
 if __name__ == "__main__":

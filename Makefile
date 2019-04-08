@@ -1,4 +1,4 @@
-PROGS = streamread out1
+PROGS = caliread testread
 CXX = gcc
 CFLAGS += -Wall
 LDLIBS += -lrt -pthread -lm
